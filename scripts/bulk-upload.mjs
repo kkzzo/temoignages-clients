@@ -21,6 +21,22 @@ import pLimit from 'p-limit';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
+// Load .env manually (compatible with Node < 20.6)
+const envPath = path.join(ROOT, '.env');
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 0) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim();
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+
 // ---- Config ----
 const API_KEY = process.env.BUNNY_API_KEY;
 const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID;
@@ -113,16 +129,28 @@ async function main() {
     process.exit(1);
   }
 
-  const files = fs.readdirSync(VIDEO_DIR)
-    .filter(f => /\.(mp4|mov|m4v|webm|mkv)$/i.test(f));
+  // Recursive walk — finds videos in VIDEO_DIR and all subdirectories
+  function walkVideos(dir, base = '') {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    let found = [];
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        found = found.concat(walkVideos(path.join(dir, entry.name), entry.name));
+      } else if (/\.(mp4|mov|m4v|webm|mkv)$/i.test(entry.name)) {
+        found.push({ file: entry.name, subdir: base, fullPath: path.join(dir, entry.name) });
+      }
+    }
+    return found;
+  }
+  const fileEntries = walkVideos(VIDEO_DIR);
 
-  if (files.length === 0) {
-    console.error('❌  No video files found. Put your files in ./videos/');
+  if (fileEntries.length === 0) {
+    console.error('❌  No video files found. Put your .mp4 files in ./videos/ or subfolders.');
     process.exit(1);
   }
 
   const metadata = parseCSV(CSV_PATH);
-  console.log(`📼  Found ${files.length} files, uploading ${CONCURRENCY} at a time...\n`);
+  console.log(`📼  Found ${fileEntries.length} files, uploading ${CONCURRENCY} at a time...\n`);
 
   // Load existing manifest to resume if interrupted
   const existing = fs.existsSync(MANIFEST_PATH)
@@ -134,42 +162,48 @@ async function main() {
   let completed = 0;
 
   const results = await Promise.all(
-    files.map(file => limit(async () => {
-      if (doneFilenames.has(file)) {
+    fileEntries.map(({ file, subdir, fullPath }) => limit(async () => {
+      // Unique key includes subdir to avoid collisions across language folders
+      const uniqueKey = subdir ? `${subdir}/${file}` : file;
+
+      if (doneFilenames.has(uniqueKey)) {
         completed++;
-        console.log(`⏭   [${completed}/${files.length}] ${file} (already uploaded, skipping)`);
-        return existing.find(e => e._filename === file);
+        console.log(`⏭   [${completed}/${fileEntries.length}] ${uniqueKey} (already uploaded, skipping)`);
+        return existing.find(e => e._filename === uniqueKey);
       }
 
-      const meta = metadata[file] || {};
+      const meta = metadata[file] || metadata[uniqueKey] || {};
       const title = meta.clientName || path.parse(file).name;
-      const filePath = path.join(VIDEO_DIR, file);
+
+      // Auto-tag with language folder (Anglais, Français, etc.) if no CSV override
+      const csvTags = meta.tags
+        ? meta.tags.split(/[|,]/).map(t => t.trim()).filter(Boolean)
+        : [];
+      const autoTags = subdir && !csvTags.includes(subdir) ? [subdir] : [];
+      const allTags = [...csvTags, ...autoTags];
 
       try {
         const { guid } = await createVideo(title);
-        await uploadFile(guid, filePath);
+        await uploadFile(guid, fullPath);
         const info = await pollUntilReady(guid);
 
         completed++;
-        console.log(`✓  [${completed}/${files.length}] ${file} → ${guid}`);
+        console.log(`✓  [${completed}/${fileEntries.length}] ${uniqueKey} → ${guid}`);
 
         return {
           guid,
-          _filename: file,
+          _filename: uniqueKey,
           clientName: meta.clientName || title,
           role: meta.role || null,
           company: meta.company || null,
           sector: meta.sector || null,
           year: meta.year ? Number(meta.year) : new Date().getFullYear(),
           duration: info ? formatDuration(info.length) : null,
-          // Tags can be comma or pipe-separated in CSV: "Success story|PME"
-          tags: meta.tags
-            ? meta.tags.split(/[|,]/).map(t => t.trim()).filter(Boolean)
-            : [],
+          tags: allTags,
         };
       } catch (err) {
         completed++;
-        console.error(`✗  [${completed}/${files.length}] ${file} — ${err.message}`);
+        console.error(`✗  [${completed}/${fileEntries.length}] ${uniqueKey} — ${err.message}`);
         return null;
       }
     }))

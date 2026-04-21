@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "download": "node --env-file=.env scripts/download-from-frameio.mjs",
-    "upload": "node --env-file=.env scripts/bulk-upload.mjs"
+    "download": "node scripts/download-from-frameio.mjs",
+    "upload": "node scripts/bulk-upload.mjs"
   },
   "dependencies": {
     "next": "15.0.3",

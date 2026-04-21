@@ -7,3 +7,4 @@ videos/
 videos.csv
 *.log
 .DS_Store
+.vercel

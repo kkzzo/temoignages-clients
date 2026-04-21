@@ -1,171 +1,348 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import videosData from '@/data/manifest.json';
-import FilterBar from './components/FilterBar';
-import VideoGrid from './components/VideoGrid';
-import VideoModal from './components/VideoModal';
-import PresentationMode from './components/PresentationMode';
-import Pagination from './components/Pagination';
 
 const PAGE_SIZE = 24;
 
+const LANGUAGES = [
+  { key: 'all',      label: 'Tout voir',  flag: '🌍' },
+  { key: 'Français', label: 'Français',   flag: '🇫🇷' },
+  { key: 'Anglais',  label: 'Anglais',    flag: '🇬🇧' },
+  { key: 'Espagnol', label: 'Espagnol',   flag: '🇪🇸' },
+  { key: 'Italien',  label: 'Italien',    flag: '🇮🇹' },
+  { key: 'Dutch',    label: 'Néerlandais',flag: '🇳🇱' },
+];
+
+const BUNNY_CDN = process.env.NEXT_PUBLIC_BUNNY_CDN_HOSTNAME || 'vz-c45a5c9c-463.b-cdn.net';
+const BUNNY_LIB = process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || '641934';
+
+function thumbUrl(guid) {
+  return `https://${BUNNY_CDN}/${guid}/thumbnail.jpg`;
+}
+function playerUrl(guid) {
+  return `https://iframe.mediadelivery.net/embed/${BUNNY_LIB}/${guid}?autoplay=true&loop=false&muted=false&preload=true`;
+}
+
+// ── VideoCard ──────────────────────────────────────────────
+function VideoCard({ video, onClick }) {
+  const [imgOk, setImgOk] = useState(true);
+  const lang = LANGUAGES.find(l => l.key === video.language) || LANGUAGES[0];
+
+  return (
+    <div className="video-card" onClick={() => onClick(video)}>
+      <div className="thumb-wrap">
+        {imgOk ? (
+          <img
+            src={thumbUrl(video.guid)}
+            alt={video.clientName}
+            loading="lazy"
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <div style={{ width:'100%',height:'100%',background:'linear-gradient(135deg,#1a1a2e,#16213e)',display:'flex',alignItems:'center',justifyContent:'center' }}>
+            <span style={{ fontSize:'3rem' }}>{lang.flag}</span>
+          </div>
+        )}
+        <div className="thumb-overlay">
+          <div className="play-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        </div>
+        {video.duration && <div className="duration-badge">{video.duration}</div>}
+      </div>
+      <div className="card-body">
+        <div className="card-name">{video.clientName.replace(/\.(mp4|mov|m4v)$/i, '')}</div>
+        <div className="card-lang">{lang.flag} {lang.label}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── VideoModal ─────────────────────────────────────────────
+function VideoModal({ video, onClose, onNext, onPrev, position, total }) {
+  const lang = LANGUAGES.find(l => l.key === video.language) || LANGUAGES[0];
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && onNext) onNext();
+      if (e.key === 'ArrowLeft' && onPrev) onPrev();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, onNext, onPrev]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-inner" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>✕</button>
+        <div className="modal-video">
+          <iframe
+            src={playerUrl(video.guid)}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+          />
+        </div>
+        <div className="modal-controls">
+          <div className="modal-info">
+            <div className="modal-name">{video.clientName.replace(/\.(mp4|mov|m4v)$/i, '')}</div>
+            <div className="modal-meta">{lang.flag} {lang.label} · {position}/{total}</div>
+          </div>
+          <div className="modal-nav">
+            <button className="nav-btn" onClick={onPrev} disabled={!onPrev}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button className="nav-btn" onClick={onNext} disabled={!onNext}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PresentationMode ───────────────────────────────────────
+function PresentationMode({ videos, onExit }) {
+  const [idx, setIdx] = useState(0);
+  const [autoplay, setAutoplay] = useState(false);
+  const video = videos[idx];
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') onExit();
+      if (e.key === 'ArrowRight') setIdx(i => Math.min(i + 1, videos.length - 1));
+      if (e.key === 'ArrowLeft') setIdx(i => Math.max(i - 1, 0));
+      if (e.key === ' ') { e.preventDefault(); setAutoplay(a => !a); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onExit, videos.length]);
+
+  if (!video) return null;
+  const lang = LANGUAGES.find(l => l.key === video.language) || LANGUAGES[0];
+
+  return (
+    <div className="pres-overlay">
+      <div className="pres-video">
+        <iframe
+          key={video.guid}
+          src={playerUrl(video.guid)}
+          allow="autoplay; fullscreen"
+          allowFullScreen
+          style={{ width:'100%',height:'100%',border:'none' }}
+        />
+      </div>
+      <div className="pres-ui">
+        <div className="pres-top">
+          <div>
+            <div className="pres-title">⭐ Elio's Wall of Fame</div>
+            <div className="pres-counter">{lang.flag} {video.clientName.replace(/\.(mp4|mov|m4v)$/i,'')} · {idx+1}/{videos.length}</div>
+          </div>
+          <button className="pres-btn" onClick={onExit}>✕ Quitter</button>
+        </div>
+        <div className="pres-bottom">
+          <button className="pres-btn" onClick={() => setIdx(i => Math.max(i-1,0))} disabled={idx===0}>
+            ← Précédent
+          </button>
+          <button className={`pres-btn ${autoplay ? 'gold' : ''}`} onClick={() => setAutoplay(a => !a)}>
+            {autoplay ? '⏸ Auto' : '▶ Auto'}
+          </button>
+          <button className="pres-btn" onClick={() => setIdx(i => Math.min(i+1,videos.length-1))} disabled={idx===videos.length-1}>
+            Suivant →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PAGE ───────────────────────────────────────────────────
 export default function Page() {
-  const [search, setSearch] = useState('');
-  const [activeTags, setActiveTags] = useState([]); // ["sector:SaaS", "year:2025"]
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(null);
+  const [search, setSearch]       = useState('');
+  const [activeLang, setActiveLang] = useState('all');
+  const [page, setPage]           = useState(1);
+  const [selected, setSelected]   = useState(null);
   const [presenting, setPresenting] = useState(false);
 
-  // Build tag catalog from data
-  const tagCatalog = useMemo(() => {
-    const sectors = new Set();
-    const years = new Set();
-    const customTags = new Set();
-
+  // Stats
+  const stats = useMemo(() => {
+    const byLang = {};
     videosData.forEach(v => {
-      if (v.sector) sectors.add(v.sector);
-      if (v.year) years.add(String(v.year));
-      (v.tags || []).forEach(t => customTags.add(t));
+      byLang[v.language] = (byLang[v.language] || 0) + 1;
     });
-
-    return {
-      sector: Array.from(sectors).sort(),
-      year: Array.from(years).sort((a, b) => b.localeCompare(a)),
-      tag: Array.from(customTags).sort(),
-    };
+    return { total: videosData.length, byLang };
   }, []);
 
-  // Filter: within a category = OR, between categories = AND
+  // Filter
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const byCategory = activeTags.reduce((acc, key) => {
-      const [cat, val] = key.split(':');
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(val);
-      return acc;
-    }, {});
-
     return videosData.filter(v => {
+      if (activeLang !== 'all' && v.language !== activeLang) return false;
       if (q) {
-        const haystack = [v.clientName, v.company, v.role]
-          .filter(Boolean).join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      if (byCategory.sector && !byCategory.sector.includes(v.sector)) return false;
-      if (byCategory.year && !byCategory.year.includes(String(v.year))) return false;
-      if (byCategory.tag) {
-        const videoTags = v.tags || [];
-        if (!byCategory.tag.some(t => videoTags.includes(t))) return false;
+        const hay = [v.clientName, v.language].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [search, activeTags]);
+  }, [search, activeLang]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginated = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+  const curPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
 
-  const handleSearchChange = useCallback((value) => {
-    setSearch(value);
-    setPage(1);
-  }, []);
+  const selIdx = selected ? filtered.findIndex(v => v.guid === selected.guid) : -1;
+  const goNext = useCallback(() => { if (selIdx < filtered.length-1) setSelected(filtered[selIdx+1]); }, [selIdx, filtered]);
+  const goPrev = useCallback(() => { if (selIdx > 0) setSelected(filtered[selIdx-1]); }, [selIdx, filtered]);
 
-  const handleTagToggle = useCallback((tagKey) => {
-    setActiveTags(prev =>
-      prev.includes(tagKey) ? prev.filter(t => t !== tagKey) : [...prev, tagKey]
-    );
-    setPage(1);
-  }, []);
+  const handleLang = (key) => { setActiveLang(key); setPage(1); };
+  const handleSearch = (v) => { setSearch(v); setPage(1); };
 
-  const handleClearTags = useCallback(() => {
-    setActiveTags([]);
-    setSearch('');
-    setPage(1);
-  }, []);
-
-  // Modal navigation based on the current filtered list
-  const selectedIndex = selected ? filtered.findIndex(v => v.guid === selected.guid) : -1;
-  const goNext = useCallback(() => {
-    if (selectedIndex < 0 || selectedIndex >= filtered.length - 1) return;
-    setSelected(filtered[selectedIndex + 1]);
-  }, [selectedIndex, filtered]);
-  const goPrev = useCallback(() => {
-    if (selectedIndex <= 0) return;
-    setSelected(filtered[selectedIndex - 1]);
-  }, [selectedIndex, filtered]);
+  // Current lang info
+  const currentLang = LANGUAGES.find(l => l.key === activeLang);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <header className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight">
-            Témoignages clients
-          </h1>
-          <p className="mt-2 text-gray-500">
-            {videosData.length} retours d&apos;expérience de nos clients
-          </p>
+    <>
+      {/* HERO */}
+      <section className="hero">
+        <div className="hero-badge">
+          <span>⭐</span> Wall of Fame
+        </div>
+        <h1 className="hero-title">Elio's Wall<br/>of Fame</h1>
+        <p className="hero-sub">
+          Des centaines de clients qui partagent leur expérience authentique, dans leur langue.
+        </p>
+        <div className="hero-stats">
+          <div className="hero-stat">
+            <strong>{stats.total}</strong>
+            <span>Témoignages</span>
+          </div>
+          <div className="hero-stat">
+            <strong>{Object.keys(stats.byLang).filter(k=>k!=='Autre').length}</strong>
+            <span>Langues</span>
+          </div>
+          <div className="hero-stat">
+            <strong>100%</strong>
+            <span>Authentiques</span>
+          </div>
+        </div>
+      </section>
+
+      {/* CONTROLS */}
+      <div className="controls">
+        <div className="search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Rechercher une vidéo..."
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+          />
         </div>
         {filtered.length > 0 && (
-          <button
-            onClick={() => setPresenting(true)}
-            className="self-start sm:self-auto inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3 2 L11 7 L3 12 Z" fill="currentColor" />
-            </svg>
+          <button className="pres-launch" onClick={() => setPresenting(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             Mode présentation
           </button>
         )}
-      </header>
+      </div>
 
-      <FilterBar
-        search={search}
-        onSearchChange={handleSearchChange}
-        tagCatalog={tagCatalog}
-        activeTags={activeTags}
-        onTagToggle={handleTagToggle}
-        onClear={handleClearTags}
-      />
+      {/* LANG TABS */}
+      <div className="lang-tabs">
+        {LANGUAGES.map(l => {
+          const count = l.key === 'all' ? stats.total : (stats.byLang[l.key] || 0);
+          if (l.key !== 'all' && count === 0) return null;
+          return (
+            <button
+              key={l.key}
+              className={`lang-tab ${activeLang === l.key ? 'active' : ''}`}
+              onClick={() => handleLang(l.key)}
+            >
+              <span>{l.flag}</span>
+              <span>{l.label}</span>
+              <span className="count">{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {filtered.length === 0 ? (
-        <p className="text-center text-gray-500 py-16">
-          Aucun témoignage ne correspond à ta recherche.
-        </p>
-      ) : (
-        <>
-          <VideoGrid videos={paginated} onVideoClick={setSelected} />
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-          <p className="text-center text-xs text-gray-400 mt-4">
-            {filtered.length} sur {videosData.length} témoignages
-          </p>
-        </>
+      {/* GRID */}
+      <div className="section-wrap">
+        {filtered.length === 0 ? (
+          <div className="empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <p>Aucun témoignage trouvé.</p>
+          </div>
+        ) : (
+          <>
+            <div className="section-header">
+              <div className="section-title">
+                <span className="section-flag">{currentLang?.flag}</span>
+                <span>{currentLang?.label === 'Tout voir' ? 'Tous les témoignages' : currentLang?.label}</span>
+                <span className="section-count">{filtered.length} vidéo{filtered.length > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            <div className="video-grid">
+              {paginated.map(v => (
+                <VideoCard key={v.guid} video={v} onClick={setSelected} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* PAGINATION */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button className="page-btn" onClick={() => setPage(p => p-1)} disabled={curPage===1}>←</button>
+          {Array.from({length: totalPages}, (_,i) => i+1)
+            .filter(p => p===1 || p===totalPages || Math.abs(p-curPage)<=2)
+            .reduce((acc, p, i, arr) => {
+              if (i > 0 && p - arr[i-1] > 1) acc.push('…');
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) => p === '…'
+              ? <span key={`e${i}`} className="page-btn" style={{cursor:'default'}}>…</span>
+              : <button key={p} className={`page-btn ${p===curPage?'active':''}`} onClick={() => setPage(p)}>{p}</button>
+            )
+          }
+          <button className="page-btn" onClick={() => setPage(p => p+1)} disabled={curPage===totalPages}>→</button>
+        </div>
       )}
 
+      {/* MODAL */}
       {selected && (
         <VideoModal
           video={selected}
           onClose={() => setSelected(null)}
-          onNext={selectedIndex < filtered.length - 1 ? goNext : null}
-          onPrev={selectedIndex > 0 ? goPrev : null}
-          position={selectedIndex + 1}
+          onNext={selIdx < filtered.length-1 ? goNext : null}
+          onPrev={selIdx > 0 ? goPrev : null}
+          position={selIdx+1}
           total={filtered.length}
         />
       )}
 
+      {/* PRESENTATION */}
       {presenting && (
         <PresentationMode
           videos={filtered}
           onExit={() => setPresenting(false)}
         />
       )}
-    </main>
+
+      {/* FOOTER */}
+      <footer>
+        <strong>⭐ Elio's Wall of Fame</strong> · {stats.total} témoignages authentiques
+      </footer>
+    </>
   );
 }
