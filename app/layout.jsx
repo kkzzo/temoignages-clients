@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: "Elio's Wall of Fame — Témoignages Clients",
-  description: "Découvrez les témoignages de nos clients à travers le monde. Plus de 200 retours d'expérience authentiques en plusieurs langues.",
+  title: "Elio's Wall of Fame — Client Testimonials",
+  description: "Discover testimonials from our clients around the world. Over 200 authentic reviews in multiple languages.",
 };
 
 export default function RootLayout({ children }) {

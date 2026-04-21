@@ -6,12 +6,12 @@ import videosData from '@/data/manifest.json';
 const PAGE_SIZE = 24;
 
 const LANGUAGES = [
-  { key: 'all',      label: 'Tout voir',  flag: '🌍' },
-  { key: 'Français', label: 'Français',   flag: '🇫🇷' },
-  { key: 'Anglais',  label: 'Anglais',    flag: '🇬🇧' },
-  { key: 'Espagnol', label: 'Espagnol',   flag: '🇪🇸' },
-  { key: 'Italien',  label: 'Italien',    flag: '🇮🇹' },
-  { key: 'Dutch',    label: 'Néerlandais',flag: '🇳🇱' },
+  { key: 'all',      label: 'All',     flag: '🌍' },
+  { key: 'Français', label: 'French',  flag: '🇫🇷' },
+  { key: 'Anglais',  label: 'English', flag: '🇬🇧' },
+  { key: 'Espagnol', label: 'Spanish', flag: '🇪🇸' },
+  { key: 'Italien',  label: 'Italian', flag: '🇮🇹' },
+  { key: 'Dutch',    label: 'Dutch',   flag: '🇳🇱' },
 ];
 
 const BUNNY_CDN = process.env.NEXT_PUBLIC_BUNNY_CDN_HOSTNAME || 'vz-c45a5c9c-463.b-cdn.net';
@@ -54,7 +54,6 @@ function VideoCard({ video, onClick }) {
         {video.duration && <div className="duration-badge">{video.duration}</div>}
       </div>
       <div className="card-body">
-        <div className="card-name">{video.clientName.replace(/\.(mp4|mov|m4v)$/i, '')}</div>
         <div className="card-lang">{lang.flag} {lang.label}</div>
       </div>
     </div>
@@ -88,7 +87,6 @@ function VideoModal({ video, onClose, onNext, onPrev, position, total }) {
         </div>
         <div className="modal-controls">
           <div className="modal-info">
-            <div className="modal-name">{video.clientName.replace(/\.(mp4|mov|m4v)$/i, '')}</div>
             <div className="modal-meta">{lang.flag} {lang.label} · {position}/{total}</div>
           </div>
           <div className="modal-nav">
@@ -140,19 +138,19 @@ function PresentationMode({ videos, onExit }) {
         <div className="pres-top">
           <div>
             <div className="pres-title">⭐ Elio's Wall of Fame</div>
-            <div className="pres-counter">{lang.flag} {video.clientName.replace(/\.(mp4|mov|m4v)$/i,'')} · {idx+1}/{videos.length}</div>
+            <div className="pres-counter">{lang.flag} {lang.label} · {idx+1}/{videos.length}</div>
           </div>
-          <button className="pres-btn" onClick={onExit}>✕ Quitter</button>
+          <button className="pres-btn" onClick={onExit}>✕ Exit</button>
         </div>
         <div className="pres-bottom">
           <button className="pres-btn" onClick={() => setIdx(i => Math.max(i-1,0))} disabled={idx===0}>
-            ← Précédent
+            ← Previous
           </button>
           <button className={`pres-btn ${autoplay ? 'gold' : ''}`} onClick={() => setAutoplay(a => !a)}>
             {autoplay ? '⏸ Auto' : '▶ Auto'}
           </button>
           <button className="pres-btn" onClick={() => setIdx(i => Math.min(i+1,videos.length-1))} disabled={idx===videos.length-1}>
-            Suivant →
+            Next →
           </button>
         </div>
       </div>
@@ -213,20 +211,20 @@ export default function Page() {
         </div>
         <h1 className="hero-title">Elio's Wall<br/>of Fame</h1>
         <p className="hero-sub">
-          Des centaines de clients qui partagent leur expérience authentique, dans leur langue.
+          Hundreds of clients sharing their authentic experience, in their own language.
         </p>
         <div className="hero-stats">
           <div className="hero-stat">
             <strong>{stats.total}</strong>
-            <span>Témoignages</span>
+            <span>Testimonials</span>
           </div>
           <div className="hero-stat">
             <strong>{Object.keys(stats.byLang).filter(k=>k!=='Autre').length}</strong>
-            <span>Langues</span>
+            <span>Languages</span>
           </div>
           <div className="hero-stat">
             <strong>100%</strong>
-            <span>Authentiques</span>
+            <span>Authentic</span>
           </div>
         </div>
       </section>
@@ -240,7 +238,7 @@ export default function Page() {
           <input
             className="search-input"
             type="search"
-            placeholder="Rechercher une vidéo..."
+            placeholder="Search..."
             value={search}
             onChange={e => handleSearch(e.target.value)}
           />
@@ -248,7 +246,7 @@ export default function Page() {
         {filtered.length > 0 && (
           <button className="pres-launch" onClick={() => setPresenting(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            Mode présentation
+            Presentation mode
           </button>
         )}
       </div>
@@ -279,15 +277,15 @@ export default function Page() {
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
-            <p>Aucun témoignage trouvé.</p>
+            <p>No testimonials found.</p>
           </div>
         ) : (
           <>
             <div className="section-header">
               <div className="section-title">
                 <span className="section-flag">{currentLang?.flag}</span>
-                <span>{currentLang?.label === 'Tout voir' ? 'Tous les témoignages' : currentLang?.label}</span>
-                <span className="section-count">{filtered.length} vidéo{filtered.length > 1 ? 's' : ''}</span>
+                <span>{currentLang?.label === 'All' ? 'All testimonials' : currentLang?.label}</span>
+                <span className="section-count">{filtered.length} video{filtered.length > 1 ? 's' : ''}</span>
               </div>
             </div>
             <div className="video-grid">
@@ -341,7 +339,7 @@ export default function Page() {
 
       {/* FOOTER */}
       <footer>
-        <strong>⭐ Elio's Wall of Fame</strong> · {stats.total} témoignages authentiques
+        <strong>⭐ Elio's Wall of Fame</strong> · {stats.total} authentic testimonials
       </footer>
     </>
   );
