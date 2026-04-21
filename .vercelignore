@@ -1,0 +1,9 @@
+node_modules
+.next
+videos/
+videos.csv
+*.mp4
+*.mov
+*.log
+.env
+.DS_Store
