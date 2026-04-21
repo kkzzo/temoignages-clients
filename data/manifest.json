@@ -1,0 +1,32 @@
+[
+  {
+    "guid": "REPLACE_WITH_REAL_BUNNY_GUID_1",
+    "clientName": "Sophie Lambert",
+    "role": "Fondatrice",
+    "company": "Maison Laurent",
+    "sector": "E-commerce",
+    "year": 2025,
+    "duration": "2:14",
+    "tags": ["Success story", "PME"]
+  },
+  {
+    "guid": "REPLACE_WITH_REAL_BUNNY_GUID_2",
+    "clientName": "Thomas Girard",
+    "role": "CEO",
+    "company": "Nordvox Studio",
+    "sector": "SaaS",
+    "year": 2025,
+    "duration": "1:48",
+    "tags": ["Scale-up"]
+  },
+  {
+    "guid": "REPLACE_WITH_REAL_BUNNY_GUID_3",
+    "clientName": "Amélie Rousseau",
+    "role": "Directrice",
+    "company": "Clinique Solis",
+    "sector": "Services",
+    "year": 2024,
+    "duration": "3:02",
+    "tags": ["Success story"]
+  }
+]

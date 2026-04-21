@@ -1,0 +1,23 @@
+{
+  "name": "temoignages-clients",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "download": "node --env-file=.env scripts/download-from-frameio.mjs",
+    "upload": "node --env-file=.env scripts/bulk-upload.mjs"
+  },
+  "dependencies": {
+    "next": "15.0.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "p-limit": "^6.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14"
+  }
+}
